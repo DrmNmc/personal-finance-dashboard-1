@@ -1,19 +1,17 @@
 [tool.poetry]
-name = "personal-finance-dashboard-1"
+name = "personal-finance-dashboard"
 version = "0.1.0"
 description = ""
-authors = ["Dylan Miller <103227705+jibbajab@users.noreply.github.com>"]
-readme = "README.md"
-packages = [{include = "personal_finance_dashboard_1"}]
+authors = ["millerdylan87 <<>>"]
 
 [tool.poetry.dependencies]
-python = "^3.11"
-flask = "^2.2.3"
-replit = "^3.2.5"
-beautifulsoup4 = "^4.11.2"
+python = "^3.8"
 requests = "^2.28.2"
+Flask = "^2.2.3"
+beautifulsoup4 = "^4.11.2"
 
+[tool.poetry.dev-dependencies]
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
