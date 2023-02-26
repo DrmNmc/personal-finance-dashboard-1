@@ -1,12 +1,14 @@
 from flask import Flask, render_template, request, jsonify, url_for, redirect
 import json
+from os import environ
+environ["REPLIT_DB_URL"] = "https://kv.replit.com/v0/eyJhbGciOiJIUzUxMiIsImlzcyI6ImNvbm1hbiIsImtpZCI6InByb2Q6MSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjb25tYW4iLCJleHAiOjE2Nzc0NTY5NjMsImlhdCI6MTY3NzM0NTM2MywiZGF0YWJhc2VfaWQiOiJhYTNmMDAxNi0xMDYxLTQ1NWUtOTEzMC04MWEzMWE3ZTUwODEiLCJ1c2VyIjoibWlsbGVyZHlsYW44NyIsInNsdWciOiJFeHRlcm5hbFdvb3p5TWVhc3VyZW1lbnRzIn0.fS6k_qegyRTwuKpj2CtVWJpRINbBx-6lTnJqW9yTCJCHefLSfFBA6A5QtjFSSyxjsxfYYejcS_jC2iJlVQpNRA"
 from replit import db
 from bs4 import BeautifulSoup
 import requests
 import time
 
 """
-Support for fractional shares.
+Support for fractional shares. Done.
 The ability to record the sale of shares.
 Timestamps for purchase (and sale) records.
 Support for cryptocurrencies, perhaps using data from CoinMarketCap.
@@ -68,9 +70,9 @@ def buy():
         price = float(request.form['price'])
 
     if not request.form['shares']: # buy one if number not specified
-        shares = 1
+        shares = float(1.0)
     else:
-        shares = int(request.form['shares'])
+        shares = float(request.form['shares'])
 
     if ticker not in db['shares']: # buying these for the first time
         db['shares'][ticker] = { 'total_shares': shares,
@@ -103,6 +105,47 @@ def portfolio():
         portfolio[ticker]['current_value'] = current_value
 
     return jsonify(**portfolio)
+
+@site.route('/sold', methods=['POST'])
+def sold():
+    # Create soldPortfolio key if it doesn't exist
+    if 'soldPortfolio' not in db.keys():
+        db['soldPortfolio'] = {}
+
+    # Verify ticker and amount of shares
+    ticker = request.form['ticker']
+    shares = float(request.form['shares'])
+    if ticker not in db['shares'] or shares > db['shares'][ticker]['total_shares']:
+        return f"Invalid ticker or insufficient shares: {ticker} {shares}"
+
+    # Get current price
+    current_price = float(get_price(ticker))
+    if not current_price: # reject invalid tickers
+        return f"Ticker $'{ticker}' not found"
+
+    # Profit calc
+    total_cost = db['shares'][ticker]['total_cost']
+    sold_cost = shares / db['shares'][ticker]['total_shares'] * total_cost
+    profit = sold_cost - shares * current_price
+
+    # Update the soldPortfolio
+    if ticker not in db['soldPortfolio']:
+        db['soldPortfolio'][ticker] = { 'total_shares': shares, 'total_cost': sold_cost }
+    else:
+        db['soldPortfolio'][ticker]['total_shares'] += shares
+        db['soldPortfolio'][ticker]['total_cost'] += sold_cost
+
+    # Update shares
+    db['shares'][ticker]['total_shares'] -= shares
+    db['shares'][ticker]['total_cost'] -= sold_cost
+    db['shares'][ticker]['purchases'].append({ 'shares': -shares, 'price': current_price })
+
+    db['shares'][ticker]['current_price'] = current_price
+    db['shares'][ticker]['last_updated'] = time.time()
+
+    # Return profit
+    return f"Sold {shares} shares of {ticker} for ${current_price:.2f} each. Profit: ${profit:.2f}"
+
 
 
 @site.route('/flush')
