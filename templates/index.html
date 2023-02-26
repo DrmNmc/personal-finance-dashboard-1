@@ -15,7 +15,13 @@
             <input type="text" placeholder="price" name="price"/>
             <input type="submit" value="Buy"/>
         </form>
-
+        <form action="/sell" method="post">
+            <input type="text" placeholder="ticker" name="ticker"/>
+            <input type="text" placeholder="# shares" name="shares"/>
+            <input type="text" placeholder="price" name="price"/>
+            <input type="submit" value="Sell"/>
+        </form>
+        <a href="/flush">Flush DB</a>
         <table id="portfolio">
             <tr>
                 <th>Ticker</th>
@@ -28,7 +34,18 @@
                 <td>Loading...</td>
             <tr>
         </table>
-        <a href="/flush">Flush DB</a>
+        <table id="soldPortfolio">
+            <tr>
+                <th>Ticker</th>
+                <th>Number of shares</th>
+                <th>Total cost</th>
+                <th>Sold at</th>
+                <th>Profit</th>
+                <th>Percent change</th>
+                <th>Time and Date Sold</th>
+            </tr>
+        </table>
+
 
         <script>
           function percentChangeCalc(x, y) {
@@ -72,7 +89,7 @@
 
                           row = "<tr>";
                           row += "<td>$" + ticker + "</td>";
-                          row += "<td>" + totalShares + "</td>";
+                          row += "<td>" + totalShares.toFixed(3) + "</td>";
                           row += "<td>$" + totalCost.toFixed(2)  + "</td>";
                           row += "<td>$" + currentValue.toFixed(2) + "</td>";
                           row += percentChangeRow(percentChange);
@@ -104,6 +121,44 @@
           setInterval(function() {
               getPortfolio()
           }, 60000)
+
+
+          function getSoldPortfolio() {
+              fetch("/sold")
+                  .then(response => response.json())
+                  .then(data => {
+                      var table = document.getElementById("soldPortfolio");
+                      var tableHTML = "";
+
+                      for (var ticker in data) {
+                          var soldShares = data[ticker]['sold_shares'];
+                          var soldCost = data[ticker]['sold_cost'];
+                          var soldAt = data[ticker]['sold_at'];
+                          var purchaseCost = data[ticker]['purchase_cost'];
+                          var percentChange = percentChangeCalc(purchaseCost, soldCost);
+                          var profit = soldCost - purchaseCost;
+
+                          var date = new Date(soldAt);
+                          var formattedDate = date.toLocaleString();
+
+                          row = "<tr>";
+                          row += "<td>" + ticker + "</td>";
+                          row += "<td>" + soldShares.toFixed(3) + "</td>";
+                          row += "<td>$" + purchaseCost.toFixed(2) + "</td>";
+                          row += "<td>$" + soldCost.toFixed(2) + "</td>";
+                          row += "<td>$" + profit.toFixed(2) + "</td>";
+                          row += percentChangeRow(percentChange);
+                          row += "<td>" + formattedDate + "</td>";
+                          row += "</tr>";
+                          tableHTML += row;
+                      }
+
+                      table.innerHTML = tableHTML;
+                  });
+          }
+          getSoldPortfolio();
+
+
         </script>
     </body>
 </html>
