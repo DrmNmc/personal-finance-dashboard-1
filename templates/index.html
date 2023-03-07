@@ -9,16 +9,15 @@
         body { margin: 2em auto; max-width: 80em; }
     </style>
     <body>
+    //removed the 'price' field...it doesn't make sense.
         <form action="/buy" method="post">
             <input type="text" placeholder="ticker" name="ticker"/>
             <input type="text" placeholder="# shares" name="shares"/>
-            <input type="text" placeholder="price" name="price"/>
             <input type="submit" value="Buy"/>
         </form>
         <form action="/sold" method="post">
             <input type="text" placeholder="ticker" name="ticker"/>
             <input type="text" placeholder="# shares" name="shares"/>
-            <input type="text" placeholder="price" name="price"/>
             <input type="submit" value="Sell"/>
         </form>
         <a href="/flush">Flush DB</a>
@@ -29,6 +28,7 @@
                 <th>Total cost</th>
                 <th>Current value</th>
                 <th>Percent change</th>
+                <th>Time and Date Bought</th> //This takes only the initial purchase and not subsequent purchases, but the principal is the same.
             </tr>
             <tr>
                 <td>Loading...</td>
@@ -42,7 +42,7 @@
                 <th>Sold at</th>
                 <th>Profit</th>
                 <th>Percent change</th>
-                <th>Time and Date Sold</th>
+                <th>Time and Date Sold</th> //this updates with the most recent sale.
             </tr>
         </table>
 
@@ -76,7 +76,8 @@
                           <th>Total cost</th>
                           <th>Current value</th>
                           <th>Percent change</th>
-                      </tr>`;
+                          <th>Time and Date Bought</th>
+                        </tr>`;
 
                       var portfolioCost = 0;
                       var portfolioCurrent = 0;
@@ -86,6 +87,11 @@
                           var totalCost = data[ticker]['total_cost'];
                           var currentValue = data[ticker]['current_value'];
                           var percentChange = percentChangeCalc(totalCost, currentValue);
+                          var purchases = data[ticker]['purchases'];
+                          var timeAndDate = purchases[0]['time_and_date_bought'];
+
+                          var dateBought = new Date(timeAndDate * 1000); // convert to milliseconds
+                          var formattedDateBought = dateBought.toLocaleString();
 
                           row = "<tr>";
                           row += "<td>$" + ticker + "</td>";
@@ -93,6 +99,7 @@
                           row += "<td>$" + totalCost.toFixed(2)  + "</td>";
                           row += "<td>$" + currentValue.toFixed(2) + "</td>";
                           row += percentChangeRow(percentChange);
+                          row += "<td>" + formattedDateBought + "</td>";
                           row += "</tr>";
                           tableHTML += row;
 
@@ -124,40 +131,46 @@
 
 
           function getSoldPortfolio() {
-              fetch("/sold")
-                  .then(response => response.json())
-                  .then(data => {
-                      var table = document.getElementById("soldPortfolio");
-                      var tableHTML = "";
+            fetch("/soldPortfolio")
+                .then(response => response.json())
+                .then(data => {
+                    var table = document.getElementById("soldPortfolio");
+                    var tableHTML = "<tr>" +
+                        "<th>Ticker</th>" +
+                        "<th>Number of shares</th>" +
+                        "<th>Total cost</th>" +
+                        "<th>Sold at</th>" +
+                        "<th>Profit</th>" +
+                        "<th>Percent change</th>" +
+                        "<th>Time and Date Sold</th></tr>";
 
-                      for (var ticker in data) {
-                          var soldShares = data[ticker]['sold_shares'];
-                          var soldCost = data[ticker]['sold_cost'];
-                          var soldAt = data[ticker]['sold_at'];
-                          var purchaseCost = data[ticker]['purchase_cost'];
-                          var percentChange = percentChangeCalc(purchaseCost, soldCost);
-                          var profit = soldCost - purchaseCost;
+                    for (var ticker in data) {
+                        var soldShares = data[ticker]['sold_shares'];
+                        var soldAt = data[ticker]['sold_at'];
+                        var purchaseCost = data[ticker]['purchase_cost_per_share'] * soldShares;
+                        var soldPrice = data[ticker]['sold_price'] * soldShares;
+                        var percentChange = percentChangeCalc(purchaseCost, soldPrice);
+                        var profit = soldPrice - purchaseCost;
 
-                          var date = new Date(soldAt);
-                          var formattedDate = date.toLocaleString();
+                        var date = new Date(soldAt * 1000); // convert to milliseconds
+                        var formattedDate = date.toLocaleString();
 
-                          row = "<tr>";
-                          row += "<td>" + ticker + "</td>";
-                          row += "<td>" + soldShares.toFixed(3) + "</td>";
-                          row += "<td>$" + purchaseCost.toFixed(2) + "</td>";
-                          row += "<td>$" + soldCost.toFixed(2) + "</td>";
-                          row += "<td>$" + profit.toFixed(2) + "</td>";
-                          row += percentChangeRow(percentChange);
-                          row += "<td>" + formattedDate + "</td>";
-                          row += "</tr>";
-                          tableHTML += row;
-                      }
+                        row = "<tr>";
+                        row += "<td>" + ticker + "</td>";
+                        row += "<td>" + soldShares.toFixed(3) + "</td>";
+                        row += "<td>$" + purchaseCost.toFixed(2) + "</td>";
+                        row += "<td>$" + soldPrice.toFixed(2) + "</td>";
+                        row += "<td>$" + profit.toFixed(2) + "</td>";
+                        row += percentChangeRow(percentChange);
+                        row += "<td>" + formattedDate + "</td>";
+                        row += "</tr>";
+                        tableHTML += row;
+                    }
 
-                      table.innerHTML = tableHTML;
-                  });
-          }
-          getSoldPortfolio();
-
+                    table.innerHTML = tableHTML;
+                });
+        }
+        getSoldPortfolio();
 
         </script>
     </body>
